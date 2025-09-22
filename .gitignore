@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+scrape_run.log
+node_modules/
+payouts.csv
+*.log
+*.DS_Store
+
+
