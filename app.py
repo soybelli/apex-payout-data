@@ -8,6 +8,7 @@ import streamlit as st
 import plotly.express as px
 
 CSV_PATH = os.path.join(os.path.dirname(__file__), 'payouts.csv')
+CSV_PATH_DATA = os.path.join(os.path.dirname(__file__), 'data', 'payouts.csv')
 
 
 def parse_currency(value: str) -> Optional[float]:
@@ -95,11 +96,12 @@ def main():
     st.title("Apex Payouts Analytics")
     st.caption("Interactive analysis of payouts by country and month")
 
-    if not os.path.exists(CSV_PATH):
-        st.error(f"CSV not found at {CSV_PATH}")
+    csv_to_use = CSV_PATH_DATA if os.path.exists(CSV_PATH_DATA) else CSV_PATH
+    if not os.path.exists(csv_to_use):
+        st.error(f"CSV not found at {CSV_PATH_DATA} or {CSV_PATH}")
         st.stop()
 
-    df = load_data(CSV_PATH)
+    df = load_data(csv_to_use)
 
     # Sidebar filters
     st.sidebar.header("Filters")
@@ -120,7 +122,7 @@ def main():
     with tab1:
         st.subheader("Payout by Country")
         country_agg = df.groupby('Country', as_index=False)['PayoutValue'].sum().sort_values('PayoutValue', ascending=False)
-        st.dataframe(country_agg, use_container_width=True)
+        st.dataframe(country_agg, width='stretch')
         fig = px.bar(country_agg.head(25), x='Country', y='PayoutValue', title='Top Countries by Total Payout', labels={'PayoutValue': 'Payout ($)'})
         fig.update_layout(xaxis={'categoryorder': 'total descending'})
         st.plotly_chart(fig, use_container_width=True)
@@ -128,12 +130,12 @@ def main():
     with tab2:
         st.subheader("Payout by Month")
         month_agg = df.groupby('YearMonth', as_index=False)['PayoutValue'].sum().sort_values('YearMonth')
-        st.dataframe(month_agg, use_container_width=True)
+        st.dataframe(month_agg, width='stretch')
         fig2 = px.line(month_agg, x='YearMonth', y='PayoutValue', markers=True, title='Total Payout by Month', labels={'PayoutValue': 'Payout ($)'})
         st.plotly_chart(fig2, use_container_width=True)
 
     with st.expander("Raw Data"):
-        st.dataframe(df[['Date', 'Name', 'Location', 'Payout', 'PayoutValue', 'Country']].sort_values('Date', ascending=False), use_container_width=True)
+        st.dataframe(df[['Date', 'Name', 'Location', 'Payout', 'PayoutValue', 'Country']].sort_values('Date', ascending=False), width='stretch')
 
 
 if __name__ == '__main__':
