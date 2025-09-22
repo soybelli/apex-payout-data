@@ -53,13 +53,18 @@
 
         async function loadData() {
             try {
-                const response = await fetch('/data/payouts.csv');
+                const response = await fetch('./data/payouts.csv');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
                 const csvText = await response.text();
+                console.log('CSV loaded, length:', csvText.length);
                 data = parseCSV(csvText);
+                console.log('Parsed data rows:', data.length);
                 renderDashboard();
             } catch (error) {
                 console.error('Error loading data:', error);
-                document.getElementById('totalPayout').textContent = 'Error loading data';
+                document.getElementById('totalPayout').textContent = 'Error loading data: ' + error.message;
             }
         }
 
