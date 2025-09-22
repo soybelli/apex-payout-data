@@ -1,11 +1,21 @@
 {
   "version": 2,
   "builds": [
-    { "src": "Dockerfile", "use": "@vercel/docker" }
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    }
   ],
-  "env": {
-    "PORT": "8501"
-  }
+  "routes": [
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/data/(.*)",
+      "dest": "/data/$1"
+    }
+  ]
 }
 
 

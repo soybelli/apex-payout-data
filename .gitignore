@@ -8,3 +8,4 @@ payouts.csv
 *.DS_Store
 
 
+.vercel

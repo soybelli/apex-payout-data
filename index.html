@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apex Payouts Analytics</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .metric { background: #f0f2f6; padding: 20px; border-radius: 8px; margin: 10px 0; }
+        .chart { margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .tabs { display: flex; margin: 20px 0; }
+        .tab { padding: 10px 20px; background: #f0f0f0; cursor: pointer; margin-right: 5px; }
+        .tab.active { background: #007bff; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Apex Payouts Analytics</h1>
+        <p>Interactive analysis of payouts by country and month</p>
+        
+        <div class="metric">
+            <h3>Total Payout: <span id="totalPayout">Loading...</span></h3>
+            <h3>Total Records: <span id="totalRecords">Loading...</span></h3>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('country')">Payout by Country</div>
+            <div class="tab" onclick="showTab('month')">Payout by Month</div>
+        </div>
+
+        <div id="country-tab" class="tab-content active">
+            <h2>Payout by Country</h2>
+            <div id="countryChart" class="chart"></div>
+            <div id="countryTable"></div>
+        </div>
+
+        <div id="month-tab" class="tab-content">
+            <h2>Payout by Month</h2>
+            <div id="monthChart" class="chart"></div>
+            <div id="monthTable"></div>
+        </div>
+    </div>
+
+    <script>
+        let data = null;
+
+        async function loadData() {
+            try {
+                const response = await fetch('/data/payouts.csv');
+                const csvText = await response.text();
+                data = parseCSV(csvText);
+                renderDashboard();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('totalPayout').textContent = 'Error loading data';
+            }
+        }
+
+        function parseCSV(csvText) {
+            const lines = csvText.split('\n');
+            const headers = lines[0].split(',');
+            const data = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim()) {
+                    const values = parseCSVLine(lines[i]);
+                    if (values.length >= 4) {
+                        data.push({
+                            date: values[0],
+                            name: values[1],
+                            location: values[2],
+                            payout: parseFloat(values[3].replace(/[$,]/g, '')) || 0
+                        });
+                    }
+                }
+            }
+            return data;
+        }
+
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current.trim());
+            return result;
+        }
+
+        function extractCountry(location) {
+            if (!location) return 'Unknown';
+            const parts = location.split(',').map(p => p.trim());
+            const last = parts[parts.length - 1];
+            const mapping = {
+                'USA': 'USA', 'US': 'USA', 'U.S.A.': 'USA', 'United States': 'USA',
+                'UK': 'UK', 'U.K.': 'UK', 'United Kingdom': 'UK'
+            };
+            return mapping[last] || last;
+        }
+
+        function parseDate(dateStr) {
+            try {
+                return new Date(dateStr);
+            } catch {
+                return new Date();
+            }
+        }
+
+        function renderDashboard() {
+            if (!data) return;
+
+            // Calculate totals
+            const totalPayout = data.reduce((sum, row) => sum + row.payout, 0);
+            const totalRecords = data.length;
+
+            document.getElementById('totalPayout').textContent = `$${totalPayout.toLocaleString()}`;
+            document.getElementById('totalRecords').textContent = totalRecords.toLocaleString();
+
+            // Country analysis
+            const countryData = {};
+            data.forEach(row => {
+                const country = extractCountry(row.location);
+                countryData[country] = (countryData[country] || 0) + row.payout;
+            });
+
+            const countryEntries = Object.entries(countryData)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 25);
+
+            // Country chart
+            Plotly.newPlot('countryChart', [{
+                x: countryEntries.map(([country]) => country),
+                y: countryEntries.map(([, amount]) => amount),
+                type: 'bar'
+            }], {
+                title: 'Top Countries by Total Payout',
+                xaxis: { title: 'Country' },
+                yaxis: { title: 'Payout ($)' }
+            });
+
+            // Country table
+            const countryTable = `
+                <table>
+                    <tr><th>Country</th><th>Total Payout</th></tr>
+                    ${countryEntries.map(([country, amount]) => 
+                        `<tr><td>${country}</td><td>$${amount.toLocaleString()}</td></tr>`
+                    ).join('')}
+                </table>
+            `;
+            document.getElementById('countryTable').innerHTML = countryTable;
+
+            // Month analysis
+            const monthData = {};
+            data.forEach(row => {
+                const date = parseDate(row.date);
+                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                monthData[monthKey] = (monthData[monthKey] || 0) + row.payout;
+            });
+
+            const monthEntries = Object.entries(monthData).sort();
+
+            // Month chart
+            Plotly.newPlot('monthChart', [{
+                x: monthEntries.map(([month]) => month),
+                y: monthEntries.map(([, amount]) => amount),
+                type: 'scatter',
+                mode: 'lines+markers'
+            }], {
+                title: 'Total Payout by Month',
+                xaxis: { title: 'Month' },
+                yaxis: { title: 'Payout ($)' }
+            });
+
+            // Month table
+            const monthTable = `
+                <table>
+                    <tr><th>Month</th><th>Total Payout</th></tr>
+                    ${monthEntries.map(([month, amount]) => 
+                        `<tr><td>${month}</td><td>$${amount.toLocaleString()}</td></tr>`
+                    ).join('')}
+                </table>
+            `;
+            document.getElementById('monthTable').innerHTML = monthTable;
+        }
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Load data when page loads
+        loadData();
+    </script>
+</body>
+</html>
