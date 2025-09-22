@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apex Payouts Analytics</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
@@ -52,20 +52,32 @@
         let data = null;
 
         async function loadData() {
-            try {
-                const response = await fetch('./data/payouts.csv');
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const candidates = [
+                './data/payouts.csv',
+                '/data/payouts.csv'
+            ];
+            let lastError = null;
+            for (const url of candidates) {
+                try {
+                    console.log('Trying to fetch CSV from', url);
+                    const response = await fetch(url, { cache: 'no-cache' });
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    const csvText = await response.text();
+                    if (!csvText || csvText.length < 10) throw new Error('Empty CSV response');
+                    console.log('CSV loaded, length:', csvText.length);
+                    data = parseCSV(csvText);
+                    console.log('Parsed data rows:', data.length);
+                    renderDashboard();
+                    return;
+                } catch (error) {
+                    console.warn('Fetch failed for', url, error);
+                    lastError = error;
                 }
-                const csvText = await response.text();
-                console.log('CSV loaded, length:', csvText.length);
-                data = parseCSV(csvText);
-                console.log('Parsed data rows:', data.length);
-                renderDashboard();
-            } catch (error) {
-                console.error('Error loading data:', error);
-                document.getElementById('totalPayout').textContent = 'Error loading data: ' + error.message;
             }
+            console.error('All CSV fetch attempts failed:', lastError);
+            document.getElementById('totalPayout').textContent = 'Error loading data: ' + (lastError?.message || 'unknown');
         }
 
         function parseCSV(csvText) {
