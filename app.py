@@ -125,14 +125,14 @@ def main():
         st.dataframe(country_agg, width='stretch')
         fig = px.bar(country_agg.head(25), x='Country', y='PayoutValue', title='Top Countries by Total Payout', labels={'PayoutValue': 'Payout ($)'})
         fig.update_layout(xaxis={'categoryorder': 'total descending'})
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with tab2:
         st.subheader("Payout by Month")
         month_agg = df.groupby('YearMonth', as_index=False)['PayoutValue'].sum().sort_values('YearMonth')
         st.dataframe(month_agg, width='stretch')
         fig2 = px.line(month_agg, x='YearMonth', y='PayoutValue', markers=True, title='Total Payout by Month', labels={'PayoutValue': 'Payout ($)'})
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width='stretch')
 
     with st.expander("Raw Data"):
         st.dataframe(df[['Date', 'Name', 'Location', 'Payout', 'PayoutValue', 'Country']].sort_values('Date', ascending=False), width='stretch')
