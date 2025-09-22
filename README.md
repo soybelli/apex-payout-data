@@ -31,3 +31,18 @@ CSV will be written to `payouts.csv` in the project root.
 - On Streamlit Cloud, set the app entrypoint to `app.py`
 - Ensure `requirements.txt` is present
 - Upload `payouts.csv` as a dataset or point to a hosted CSV
+
+## Deployment (Vercel via Docker)
+Vercel supports Docker-based deployments.
+
+1. Ensure you have Vercel CLI logged in:
+   ```bash
+   npm i -g vercel
+   vercel login
+   ```
+2. From the repo root:
+   ```bash
+   vercel --prod
+   ```
+
+This repo includes `Dockerfile`, `.streamlit/config.toml`, and `vercel.json` so Vercel can build and run Streamlit on port 8501.
